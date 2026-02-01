@@ -2,114 +2,104 @@
 - name: Install system utilities
   hosts: localhost
   connection: local
-  become: yes
+  become: true
   vars:
     system_arch: "{{ ansible_architecture }}"
-    
+
   tasks:
+    - name: Gather package facts
+      ansible.builtin.package_facts:
+        manager: auto
+
     - name: Update apt cache
-      apt:
-        update_cache: yes
+      ansible.builtin.apt:
+        update_cache: true
         cache_valid_time: 3600
 
     - name: Install Git (from OS repo)
-      apt:
+      ansible.builtin.apt:
         name: git
         state: present
 
     - name: Install ripgrep (from OS repo)
-      apt:
+      ansible.builtin.apt:
         name: ripgrep
         state: present
 
     - name: Install fd-find (from OS repo) - provides fdfind command
-      apt:
+      ansible.builtin.apt:
         name: fd-find
         state: present
 
     - name: Install procs (from OS repo)
-      apt:
+      ansible.builtin.apt:
         name: procs
         state: present
 
     - name: Install glances (from OS repo)
-      apt:
+      ansible.builtin.apt:
         name: glances
         state: present
 
     - name: Install lsd (from OS repo)
-      apt:
+      ansible.builtin.apt:
         name: lsd
         state: present
 
     - name: Create symlink fd -> fdfind (if fd-find installed)
-      file:
+      ansible.builtin.file:
         src: /usr/bin/fdfind
         dest: /usr/local/bin/fd
         state: link
-        force: yes
+        force: true
       when: "'fd-find' in ansible_facts.packages"
 
     - name: Check if witr is available in Debian repos
-      command: apt-cache search ^witr$
+      ansible.builtin.command: apt-cache search ^witr$
       register: witr_search
-      ignore_errors: yes
+      ignore_errors: true
       changed_when: false
 
-    - name: Install witr from GitHub (if not in Debian repos)
-      block:
-        - name: Determine architecture for witr
-          set_fact:
-            witr_arch: "{% if system_arch == 'x86_64' %}x86_64{% elif system_arch == 'aarch64' %}aarch64{% elif system_arch == 'armv7l' %}armv7{% else %}x86_64{% endif %}"
+    - name: Check if witr is available in Debian repos
+      ansible.builtin.command: apt-cache search ^witr$
+      register: witr_search
+      ignore_errors: true
+      changed_when: false
 
-        - name: Get latest witr release info
-          uri:
-            url: "https://api.github.com/repos/pranshuparmar/witr/releases/latest"
-            return_content: yes
-            headers:
-              Accept: "application/vnd.github.v3+json"
-          register: witr_release
-          until: witr_release.status == 200
-          retries: 3
-          delay: 2
-
-        - name: Extract witr download URL
-          set_fact:
-            witr_download_url: "{{ witr_release.json.assets | selectattr('name', 'match', '.*' + witr_arch + '.*linux.*tar.gz$') | map(attribute='browser_download_url') | first }}"
-
-        - name: Download witr
-          get_url:
-            url: "{{ witr_download_url }}"
-            dest: "/tmp/witr.tar.gz"
-            mode: '0644'
-
-        - name: Extract witr
-          unarchive:
-            src: "/tmp/witr.tar.gz"
-            dest: "/tmp"
-            remote_src: yes
-            creates: "/tmp/witr"
-
-        - name: Install witr binary
-          copy:
-            src: "/tmp/witr"
-            dest: "/usr/local/bin/witr"
-            mode: '0755'
-            remote_src: yes
-
-        - name: Clean up temp files
-          file:
-            path: "{{ item }}"
-            state: absent
-          loop:
-            - "/tmp/witr.tar.gz"
-            - "/tmp/witr"
+    - name: Install witr from GitHub using official install script
       when: witr_search.stdout_lines | length == 0
+      block:
+        - name: Download witr install script
+          ansible.builtin.get_url:
+            url: https://raw.githubusercontent.com/pranshuparmar/witr/main/install.sh
+            dest: /tmp/install-witr.sh
+            mode: '0755'
+            force: true
+
+        - name: Execute witr install script
+          ansible.builtin.command: /tmp/install-witr.sh
+          register: witr_install
+          changed_when: "'already installed' not in witr_install.stdout"
+
+        - name: Clean up install script
+          ansible.builtin.file:
+            path: /tmp/install-witr.sh
+            state: absent
+
+        - name: Verify witr installation
+          ansible.builtin.command: which witr
+          register: witr_path
+          changed_when: false
+
+        - name: Display installation result
+          ansible.builtin.debug:
+            msg: "witr installed at: {{ witr_path.stdout }}"
+          when: witr_path.stdout != ""
 
     - name: Verify installations
-      command: "{{ item }} --version"
+      ansible.builtin.command: "{{ item }} --version"
       register: version_checks
-      ignore_errors: yes
+      ignore_errors: true
       changed_when: false
       loop:
         - git
@@ -121,7 +111,7 @@
         - witr
 
     - name: Display installation results
-      debug:
+      ansible.builtin.debug:
         msg: |
           Установка завершена:
           Git: {{ '✓' if 'git version' in version_checks.results[0].stdout else '✗' }}
