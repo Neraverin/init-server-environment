@@ -1,0 +1,24 @@
+---
+- name: Complete server setup
+  hosts: localhost
+  connection: local
+  vars_files:
+    - vars/defaults.yml
+
+  pre_tasks:
+    - name: Display start message
+      ansible.builtin.debug:
+        msg: "Starting complete server setup..."
+
+  tasks:
+    - name: Include system utilities installation
+      ansible.builtin.import_tasks: tasks/install_utils.yml
+      become: true
+
+    - name: Include Git configuration
+      ansible.builtin.import_tasks: tasks/configure_git.yml
+
+  post_tasks:
+    - name: Display completion message
+      ansible.builtin.debug:
+        msg: "Server setup completed successfully!"

@@ -1,0 +1,40 @@
+---
+- name: Set Git global user name
+  community.general.git_config:
+    name: user.name
+    scope: global
+    value: "{{ git_config.user_name }}"
+  when: git_config.user_name != 'Your Name'
+
+- name: Set Git global user email
+  community.general.git_config:
+    name: user.email
+    scope: global
+    value: "{{ git_config.user_email }}"
+  when: git_config.user_email != 'your.email@example.com'
+
+- name: Set Git core editor
+  community.general.git_config:
+    name: core.editor
+    scope: global
+    value: "{{ git_config.editor }}"
+
+- name: Set Git init default branch
+  community.general.git_config:
+    name: init.defaultBranch
+    scope: global
+    value: "{{ git_config.default_branch }}"
+
+- name: Configure Git credential helper (cache)
+  community.general.git_config:
+    name: credential.helper
+    scope: global
+    value: "cache --timeout=3600"
+
+- name: Show configured Git settings
+  ansible.builtin.debug:
+    msg: |
+      Git configuration applied:
+      - User: {{ git_config.user_name }} <{{ git_config.user_email }}>
+      - Editor: {{ git_config.editor }}
+      - Default branch: {{ git_config.default_branch }}

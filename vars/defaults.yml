@@ -1,0 +1,23 @@
+---
+# System architecture
+system_arch: "{{ ansible_architecture }}"
+
+# Git configuration
+git_config:
+  user_name: "Vladimir Salykin"
+  user_email: "neraverin@gmail.com"
+  editor: "vim"
+  default_branch: "master"
+
+# Package lists
+system_packages:
+  - { package: git, command: git }
+  - { package: ripgrep, command: rg }
+  - { package: fd-find, command: fdfind }
+  - { package: procs, command: procs }
+  - { package: glances, command: glances }
+  - { package: lsd, command: lsd }
+
+# Optional packages (installed from GitHub if not in repos)
+optional_packages:
+  - { package: witr, command: witr }
