@@ -1,7 +1,6 @@
 ---
 - name: Complete server setup
-  hosts: localhost
-  connection: local
+  hosts: all
   vars_files:
     - vars/defaults.yml
 
