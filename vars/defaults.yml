@@ -13,10 +13,11 @@ git_config:
 system_packages:
   - { package: git, command: git }
   - { package: ripgrep, command: rg }
-  - { package: fd-find, command: fdfind }
+  - { package: fd-find, command: fd }
   - { package: procs, command: procs }
   - { package: glances, command: glances }
   - { package: lsd, command: lsd }
+  - { package: mc, command: mc }
 
 # Optional packages (installed from GitHub if not in repos)
 optional_packages:

@@ -1,81 +1,81 @@
 ---
-  - name: Gather package facts
-    ansible.builtin.package_facts:
-      manager: auto
+- name: Gather package facts
+  ansible.builtin.package_facts:
+    manager: auto
 
-  - name: Update apt cache
-    ansible.builtin.apt:
-      update_cache: true
-      cache_valid_time: 3600
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
 
-  - name: Install system packages from OS repos
-    ansible.builtin.apt:
-      name: "{{ item.package }}"
-      state: present
-    loop: "{{ system_packages }}"
+- name: Install system packages from OS repos
+  ansible.builtin.apt:
+    name: "{{ item.package }}"
+    state: present
+  loop: "{{ system_packages }}"
 
-  - name: Create symlink fd -> fdfind (if fd-find installed)
-    ansible.builtin.file:
-      src: /usr/bin/fdfind
-      dest: /usr/local/bin/fd
-      state: link
-      force: true
-    when: "'fd-find' in ansible_facts.packages"
+- name: Create symlink fd -> fdfind (if fd-find installed)
+  ansible.builtin.file:
+    src: /usr/bin/fdfind
+    dest: /usr/local/bin/fd
+    state: link
+    force: true
+  when: "'fd-find' in ansible_facts.packages"
 
-  - name: Install optional packages
-    block:
-      - name: Check if witr is available in Debian repos
-        ansible.builtin.command: apt-cache search ^witr$
-        register: witr_search
-        ignore_errors: true
-        changed_when: false
+- name: Install optional packages
+  when: optional_packages | selectattr('package', 'equalto', 'witr') | list | length > 0
+  block:
+    - name: Check if witr is available in Debian repos
+      ansible.builtin.command: apt-cache search ^witr$
+      register: witr_search
+      ignore_errors: true
+      changed_when: false
 
-      - name: Install witr from GitHub (if not in repos)
-        block:
-          - name: Download witr install script
-            ansible.builtin.get_url:
-              url: https://raw.githubusercontent.com/pranshuparmar/witr/main/install.sh
-              dest: /tmp/install-witr.sh
-              mode: '0755'
-              force: true
+    - name: Install witr from GitHub (if not in repos)
+      when: witr_search.stdout_lines | length == 0
+      block:
+        - name: Download witr install script
+          ansible.builtin.get_url:
+            url: https://raw.githubusercontent.com/pranshuparmar/witr/main/install.sh
+            dest: /tmp/install-witr.sh
+            mode: '0755'
+            force: true
 
-          - name: Execute witr install script
-            ansible.builtin.command: /tmp/install-witr.sh
-            register: witr_install
-            changed_when: "'already installed' not in witr_install.stdout"
+        - name: Execute witr install script
+          ansible.builtin.command: /tmp/install-witr.sh
+          register: witr_install
+          changed_when: "'already installed' not in witr_install.stdout"
 
-          - name: Clean up install script
-            ansible.builtin.file:
-              path: /tmp/install-witr.sh
-              state: absent
-        when: witr_search.stdout_lines | length == 0
-    when: "'witr' in optional_packages"
+        - name: Clean up install script
+          ansible.builtin.file:
+            path: /tmp/install-witr.sh
+            state: absent
 
-  - name: Verify system package installations
-    ansible.builtin.command: "{{ item.command }} --version"
-    register: system_version_checks
-    ignore_errors: true
-    changed_when: false
-    loop: "{{ system_packages }}"
+- name: Verify system package installations
+  ansible.builtin.command: "{{ item.command }} --version"
+  register: system_version_checks
+  ignore_errors: true
+  changed_when: false
+  loop: "{{ system_packages }}"
 
-  - name: Verify optional package installations
-    ansible.builtin.command: "{{ item.command }} --version"
-    register: optional_version_checks
-    ignore_errors: true
-    changed_when: false
-    loop: "{{ optional_packages }}"
-    when: "'witr' in optional_packages"
+- name: Verify optional package installations
+  when: optional_packages | selectattr('package', 'equalto', 'witr') | list | length > 0
+  ansible.builtin.command: "{{ item.command }} --version"
+  register: optional_version_checks
+  ignore_errors: true
+  changed_when: false
+  loop: "{{ optional_packages }}"
 
-  - name: Display installation results
-    ansible.builtin.debug:
-      msg: |
-        Установка завершена:
-        Git: {{ '✓' if 'git version' in system_version_checks.results[0].stdout else '✗' }}
-        ripgrep: {{ '✓' if 'ripgrep' in system_version_checks.results[1].stdout else '✗' }}
-        fd: {{ '✓' if 'fd' in system_version_checks.results[2].stdout or 'fdfind' in system_version_checks.results[2].stdout else '✗' }}
-        procs: {{ '✓' if 'procs' in system_version_checks.results[3].stdout else '✗' }}
-        glances: {{ '✓' if 'glances' in system_version_checks.results[4].stdout else '✗' }}
-        lsd: {{ '✓' if 'lsd' in system_version_checks.results[5].stdout else '✗' }}
-        {% if 'witr' in optional_packages %}
-        witr: {{ '✓' if optional_version_checks.results[0].rc == 0 else '✗' }}
-        {% endif %}
+- name: Display installation results
+  ansible.builtin.debug:
+    msg: |
+      Установка завершена:
+      Git: {{ '✓' if 'git version' in system_version_checks.results[0].stdout else '✗' }}
+      ripgrep: {{ '✓' if 'ripgrep' in system_version_checks.results[1].stdout else '✗' }}
+      fd: {{ '✓' if 'fd' in system_version_checks.results[2].stdout or 'fdfind' in system_version_checks.results[2].stdout else '✗' }}
+      procs: {{ '✓' if 'procs' in system_version_checks.results[3].stdout else '✗' }}
+      glances: {{ '✓' if 'glances' in system_version_checks.results[4].stdout else '✗' }}
+      lsd: {{ '✓' if 'lsd' in system_version_checks.results[5].stdout else '✗' }}
+      {% if 'witr' in optional_packages %}
+      witr: {{ '✓' if optional_version_checks.results[0].rc == 0 else '✗' }}
+      {% endif %}
